@@ -108,7 +108,9 @@ async function illustrateLastTurn(st: SessionState): Promise<IllustrationResult>
 		}
 	}
 	if (!narrative) return { ok: false, reason: "empty" };
-	const cacheKey = `${st.ctx.totalTurns}:${narrative.length}`;
+	// 用「回合数 + 正文前缀」做键：只靠长度会在两回合正文等长时误命中，
+	// 表现为「这一回合又出了上一回合那张图」。
+	const cacheKey = `${st.ctx.totalTurns}:${narrative.length}:${narrative.slice(0, 48)}`;
 	st.ill.latestKey = cacheKey;
 	if (st.ill.last && st.ill.cacheKey === cacheKey) {
 		const c = st.ill.last;
@@ -763,7 +765,10 @@ const server = createServer(async (req, res) => {
 				"Content-Type": result.image.mime,
 				"Content-Length": String(result.image.buf.length),
 				// 同一回合的图不变，允许浏览器短缓存，翻回上一条不用重新下载
-				"Cache-Control": "private, max-age=300",
+				// 必须 no-store：同一会话每回合的图都不同，但 URL 恒定（?sid=X），
+								// 若允许 HTTP 缓存，浏览器会把第一张图复用 5 分钟，看起来"每回合都是同一张"。
+								// 同回合的重复请求由 illustrateLastTurn 的内存缓存负责去重，不靠 HTTP 缓存。
+								"Cache-Control": "no-store",
 				"X-Illustration-Prompt": encodeURIComponent(result.prompt ?? ""),
 			});
 			res.end(result.image.buf);

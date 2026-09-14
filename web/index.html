@@ -3880,7 +3880,7 @@ async function requestIllustration(bodyEl) {
   smartScroll();
   let objUrl = "";
   try {
-    const r = await fetch("/api/illustration?sid=" + encodeURIComponent(getSid()));
+    const r = await fetch("/api/illustration?sid=" + encodeURIComponent(getSid()) + "&t=" + Date.now());
     if (r.status !== 200 || !(r.headers.get("Content-Type") || "").startsWith("image/")) {
       fig.remove();
       return;
