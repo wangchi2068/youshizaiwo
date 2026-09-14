@@ -149,12 +149,12 @@ body::after {
   transition: transform .18s ease, stroke .18s ease;
 }
 
-/* 整体布局 */
+/* 整体布局 · 医院作战指挥中心全屏架构 */
 #app {
   position: relative;
   z-index: 3;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 396px;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   width: 100%;
   max-width: 100vw;
@@ -163,18 +163,48 @@ body::after {
 main {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-width: 0;
+  min-height: 0;
   position: relative;
   overflow: hidden;
 }
 aside {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 410px;
+  max-width: 88vw;
+  z-index: 80;
+  transform: translateX(102%);
+  visibility: hidden;
+  transition: transform .32s cubic-bezier(.16, 1, .3, 1), visibility .32s;
   border-left: 1px solid var(--border-line);
   background: linear-gradient(180deg, rgba(13, 19, 28, 0.98), rgba(7, 11, 16, 0.99));
   backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   min-width: 0;
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+  box-shadow: -16px 0 48px rgba(0, 0, 0, 0.75);
+}
+aside.open {
+  transform: translateX(0);
+  visibility: visible;
+}
+.aside-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 11, 0.68);
+  backdrop-filter: blur(4px);
+  z-index: 75;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
+}
+.aside-mask.show {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1817,6 +1847,853 @@ header {
   .card-box, .roll-box { max-width: 100%; margin-left: 0; padding: 16px 14px; }
 }
 
+
+/* ════════════════════════════════════════════════════════════════
+   医院作战指挥中心 · 看板态势与三栏架构 (Command Deck)
+   ════════════════════════════════════════════════════════════════ */
+.case-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: .08em;
+  color: var(--dawn);
+  background: rgba(63, 107, 156, 0.16);
+  border: 1px solid var(--blue-pencil-border);
+  white-space: nowrap;
+}
+
+.command-deck {
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(11, 17, 25, 0.92) 0%, rgba(7, 11, 16, 0.96) 100%);
+  border-bottom: 1px solid var(--border-line);
+  padding: 10px 18px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  position: relative;
+  z-index: 9;
+}
+.deck-segmented-control {
+  display: none;
+}
+.deck-col {
+  background: rgba(16, 22, 34, 0.72);
+  border: 1px solid var(--border-line);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 200px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: border-color .2s;
+}
+.deck-col:hover {
+  border-color: rgba(143, 168, 196, 0.28);
+}
+.deck-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+}
+.deck-col-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+  letter-spacing: .06em;
+}
+.deck-col-title .svg-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--dawn);
+}
+.deck-col-status {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.deck-col-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.deck-col-body::-webkit-scrollbar { width: 5px; }
+.deck-col-body::-webkit-scrollbar-track { background: transparent; }
+.deck-col-body::-webkit-scrollbar-thumb {
+  background: rgba(143, 168, 196, 0.15);
+  border-radius: var(--radius-pill);
+}
+.deck-col-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(143, 168, 196, 0.3);
+}
+
+/* 栏 1：活跃科室卡片 */
+.deck-roster-card {
+  background: rgba(8, 13, 20, 0.85);
+  border: 1px solid var(--border-line);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: all .16s ease;
+}
+.deck-roster-card:hover {
+  border-color: var(--blue-pencil-border);
+  transform: translateY(-1px);
+  background: rgba(12, 19, 30, 0.95);
+}
+.deck-roster-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.deck-roster-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dept-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--blue-pencil);
+  box-shadow: 0 0 6px var(--blue-pencil);
+  flex-shrink: 0;
+}
+.deck-roster-name {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: .02em;
+}
+.deck-roster-key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dark);
+  padding: 1px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+.deck-roster-ask-btn {
+  padding: 2px 7px;
+  font-size: 10.5px;
+  border-radius: 2px;
+  border: 1px solid var(--blue-pencil-border);
+  background: rgba(63, 107, 156, 0.12);
+  color: var(--dawn);
+  cursor: pointer;
+  transition: all .14s;
+  font-family: var(--font-serif);
+}
+.deck-roster-ask-btn:hover {
+  background: rgba(63, 107, 156, 0.28);
+  color: #fff;
+  border-color: var(--dawn);
+}
+.deck-roster-stance {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  font-family: var(--font-serif);
+}
+.stance-label {
+  color: var(--text-dark);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.deck-roster-conf {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.conf-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dark);
+}
+.conf-track {
+  width: 100%;
+  height: 3.5px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.conf-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue-pencil), var(--dawn));
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+.deck-roster-limit {
+  font-size: 10.5px;
+  color: #a1a1aa;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  background: rgba(180, 71, 47, 0.06);
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px dashed rgba(180, 71, 47, 0.25);
+}
+.limit-tag {
+  color: var(--red-pencil);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.limit-text {
+  line-height: 1.35;
+}
+
+/* 栏 2：患者战况三大宏观指标 */
+.vitals-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+.vitals-kpi-card {
+  background: rgba(8, 13, 20, 0.85);
+  border: 1px solid var(--border-line);
+  border-radius: var(--radius-sm);
+  padding: 7px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.kpi-title {
+  font-size: 11px;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.kpi-icon {
+  font-size: 12px;
+}
+.kpi-tag {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  padding: 1px 4px;
+  border-radius: 2px;
+  border: 1px solid var(--border-line);
+  color: var(--text-dark);
+  white-space: nowrap;
+}
+.kpi-main {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin: 1px 0;
+}
+.kpi-val {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+.kpi-unit {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dark);
+}
+.kpi-bar-bg {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.kpi-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .4s ease, background .3s;
+}
+.kpi-sub {
+  font-size: 9.5px;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+}
+.vitals-lines-ctrl {
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
+}
+.vitals-lines-btn {
+  background: rgba(143, 168, 196, 0.03);
+  border: 1px dashed var(--border-line);
+  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all .16s;
+}
+.vitals-lines-btn:hover {
+  border-color: var(--blue-pencil-border);
+  color: var(--dawn);
+  background: rgba(63, 107, 156, 0.1);
+}
+.vitals-lines-btn .svg-icon {
+  width: 11px;
+  height: 11px;
+  transition: transform .2s ease;
+}
+.vitals-lines-tray {
+  margin-top: 5px;
+}
+.battle-lines-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  padding: 6px;
+  background: rgba(5, 8, 13, 0.85);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.battle-line-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.line-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-family: var(--font-serif);
+}
+.line-name {
+  color: var(--text-muted);
+}
+.line-num {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.line-track {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.line-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .3s ease;
+}
+.line-sub {
+  font-size: 9px;
+  color: var(--text-dark);
+  font-family: var(--font-mono);
+}
+
+/* 栏 3：待决电报 */
+.deck-tg-item {
+  background: rgba(8, 13, 20, 0.85);
+  border: 1px solid var(--border-line);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+.deck-tg-item.baseline {
+  border-left: 2px solid var(--blue-pencil);
+}
+.tg-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tg-item-code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dawn);
+  letter-spacing: .06em;
+}
+.tg-drift-badge {
+  font-size: 9.5px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: rgba(180, 71, 47, 0.15);
+  border: 1px solid var(--red-pencil-border);
+  color: #fca5a5;
+  font-family: var(--font-mono);
+}
+.tg-baseline-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: rgba(63, 107, 156, 0.12);
+  border: 1px solid var(--blue-pencil-border);
+  color: var(--dawn);
+  font-family: var(--font-mono);
+}
+.tg-status-tag {
+  font-size: 9.5px;
+  color: var(--text-dark);
+  font-family: var(--font-mono);
+}
+.tg-fact {
+  color: var(--text-main);
+  line-height: 1.4;
+  font-family: var(--font-serif);
+}
+.tg-rec {
+  color: var(--text-muted);
+  line-height: 1.4;
+  font-style: italic;
+  font-family: var(--font-serif);
+}
+.tg-title {
+  color: var(--text-main);
+  font-weight: 600;
+  font-family: var(--font-serif);
+}
+.tg-desc {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+.tg-label {
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-right: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* 空状态占位 */
+.deck-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  padding: 12px 14px;
+  gap: 6px;
+  color: var(--text-dark);
+}
+.deck-empty-icon {
+  color: var(--blue-pencil);
+  opacity: 0.6;
+}
+.deck-empty-icon .svg-icon {
+  width: 22px;
+  height: 22px;
+}
+.deck-empty-title {
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.deck-empty-desc {
+  font-size: 10.5px;
+  line-height: 1.45;
+  max-width: 260px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   叙事正文容器 · 收窄中栏宽度与文档纸感
+   ════════════════════════════════════════════════════════════════ */
+.narrative-container {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+}
+#messages {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 820px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 24px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  scroll-behavior: smooth;
+  box-sizing: border-box;
+}
+#scrollToBottom {
+  position: absolute;
+  right: 28px;
+  bottom: 18px;
+  z-index: 25;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   动作控制台 (Composer) · 四大核心动作按钮与动态托盘
+   ════════════════════════════════════════════════════════════════ */
+.core-action-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.core-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .16s ease;
+  border: 1px solid var(--border-line);
+  background: rgba(143, 168, 196, 0.04);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.core-action-btn .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+.core-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+#btnAskExpert {
+  border-color: var(--blue-pencil-border);
+  color: var(--dawn);
+  background: rgba(63, 107, 156, 0.12);
+}
+#btnAskExpert:hover {
+  background: rgba(63, 107, 156, 0.26);
+  color: #ffffff;
+  border-color: var(--dawn);
+}
+#btnConfer {
+  border-color: rgba(143, 168, 196, 0.35);
+  color: #e2e8f0;
+  background: rgba(143, 168, 196, 0.08);
+}
+#btnConfer:hover {
+  background: rgba(143, 168, 196, 0.22);
+  color: #ffffff;
+  border-color: var(--dawn);
+}
+#btnDecide {
+  border-color: var(--red-pencil-border);
+  color: #fca5a5;
+  background: rgba(180, 71, 47, 0.14);
+}
+#btnDecide:hover {
+  background: rgba(180, 71, 47, 0.28);
+  color: #ffffff;
+  border-color: var(--red-pencil);
+}
+#btnPlainTalk {
+  border-color: rgba(212, 163, 115, 0.35);
+  color: var(--lamp-warm);
+  background: rgba(212, 163, 115, 0.09);
+}
+#btnPlainTalk:hover {
+  background: rgba(212, 163, 115, 0.24);
+  color: #ffffff;
+  border-color: var(--lamp-warm);
+}
+
+/* 动态操作托盘 */
+.action-tray {
+  margin-bottom: 10px;
+  background: rgba(10, 16, 25, 0.96);
+  border: 1px solid var(--blue-pencil-border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  animation: rise .2s ease;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+.tray-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tray-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-serif);
+  font-size: 12px;
+  color: var(--dawn);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 5px;
+}
+.tray-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.tray-title .svg-icon {
+  width: 13px;
+  height: 13px;
+}
+.tray-close {
+  background: none;
+  border: none;
+  font-size: 17px;
+  color: var(--text-dark);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.tray-close:hover {
+  color: #fff;
+}
+.tray-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-serif);
+  padding: 6px 0;
+}
+.tray-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tray-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-line);
+  background: rgba(143, 168, 196, 0.05);
+  color: var(--text-main);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tray-chip-btn:hover {
+  border-color: var(--dawn);
+  background: rgba(63, 107, 156, 0.2);
+  color: #fff;
+}
+.tray-chip-btn.selected {
+  border-color: var(--dawn);
+  background: rgba(63, 107, 156, 0.35);
+  color: #fff;
+  font-weight: 600;
+}
+.dept-conf-tag {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--dawn);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+.check-box {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border-line);
+  border-radius: 2px;
+  text-align: center;
+  line-height: 11px;
+  font-size: 9px;
+  color: var(--dawn);
+}
+.tray-chip-btn.selected .check-box {
+  border-color: var(--dawn);
+  background: var(--blue-pencil);
+  color: #fff;
+}
+.tray-cands {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tray-cand-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--red-pencil-border);
+  background: rgba(180, 71, 47, 0.1);
+  color: var(--text-main);
+  font-family: var(--font-serif);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tray-cand-btn:hover {
+  background: rgba(180, 71, 47, 0.24);
+  color: #fff;
+  border-color: var(--red-pencil);
+}
+.gavel-tag {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--red-pencil);
+  color: #fff;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.cand-text {
+  line-height: 1.4;
+}
+.tray-submit-btn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--blue-pencil);
+  background: linear-gradient(180deg, #243852, #162435);
+  color: #fff;
+  font-family: var(--font-serif);
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all .16s;
+}
+.tray-submit-btn:hover {
+  border-color: var(--dawn);
+  background: linear-gradient(180deg, #2d4563, #1c2e42);
+}
+
+.input-box-container.decide-mode {
+  border-color: var(--red-pencil) !important;
+  box-shadow: 0 0 0 2px rgba(180, 71, 47, 0.28) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   响应式断点控制 · 宽屏三栏并列 / 窄屏分段选项卡
+   ════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+  .command-deck {
+    display: grid;
+    grid-template-columns: 310px 1.15fr 330px;
+    gap: 12px;
+  }
+  .deck-segmented-control {
+    display: none !important;
+  }
+  .deck-col {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .command-deck {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .deck-segmented-control {
+    display: flex;
+    width: 100%;
+    background: rgba(16, 22, 34, 0.95);
+    border: 1px solid var(--border-line);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    gap: 4px;
+    box-sizing: border-box;
+  }
+  .deck-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px 6px;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all .16s ease;
+  }
+  .deck-tab-btn .svg-icon {
+    width: 13px;
+    height: 13px;
+  }
+  .deck-tab-btn.active {
+    background: rgba(63, 107, 156, 0.35);
+    color: #ffffff;
+    border: 1px solid var(--blue-pencil-border);
+    font-weight: 600;
+  }
+  .deck-badge {
+    font-size: 9.5px;
+    font-family: var(--font-mono);
+    padding: 0 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .deck-badge.alert {
+    color: #fca5a5;
+    background: rgba(180, 71, 47, 0.2);
+  }
+  .deck-col {
+    display: none;
+    width: 100%;
+    height: 210px;
+  }
+  .deck-col.active {
+    display: flex;
+  }
+  .core-action-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1832,8 +2709,11 @@ header {
           <svg class="svg-icon" viewBox="0 0 24 24" style="width:19px;height:19px;"><circle cx="12" cy="12" r="9" stroke-dasharray="2 3"/><circle cx="12" cy="12" r="3.5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
         </div>
         <div class="brand-text">
-          <span class="brand-title">优势在我</span>
-          <span class="brand-sub">会诊室的值班组 · THE ADVANTAGE IS MINE</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="brand-title">优势在我 · 会诊室</span>
+            <span class="case-badge" id="caseBadge">CASE 01 · 凌晨初诊</span>
+          </div>
+          <span class="brand-sub">军事指挥所与病历档案夜班推演 · THE ADVANTAGE IS MINE</span>
         </div>
       </div>
 
@@ -1885,6 +2765,134 @@ header {
     </header>
 
     <div id="ctxBarWrap"><div id="ctxBar"></div></div>
+
+    <!-- 医院作战指挥中心 · 态势大板 (Command Deck) -->
+    <section class="command-deck" id="commandDeck">
+      <!-- 窄屏 (<=900px) 分段选项卡切换器 -->
+      <div class="deck-segmented-control" id="deckTabs">
+        <button class="deck-tab-btn active" data-col="colRoster" type="button">
+          <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+          <span>活跃科室</span>
+          <span class="deck-badge" id="rosterTabBadge">0</span>
+        </button>
+        <button class="deck-tab-btn" data-col="colVitals" type="button">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span>患者战况</span>
+          <span class="deck-badge alert" id="vitalsTabBadge">初诊</span>
+        </button>
+        <button class="deck-tab-btn" data-col="colTelegraph" type="button">
+          <svg class="svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>待决电报</span>
+          <span class="deck-badge" id="telegraphTabBadge">实时</span>
+        </button>
+      </div>
+
+      <!-- 栏 1：活跃科室 (Col 1) -->
+      <div class="deck-col col-roster active" id="colRoster">
+        <div class="deck-col-header">
+          <div class="deck-col-title">
+            <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+            <span>活跃科室 · 态势主张</span>
+          </div>
+          <span class="deck-col-status" id="rosterCountTag">已到场 0 科</span>
+        </div>
+        <div class="deck-col-body" id="deckRosterBody">
+          <div class="deck-empty-state">
+            <div class="deck-empty-icon"><svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg></div>
+            <div class="deck-empty-title">各科室正携带部署预案赶赴会诊室</div>
+            <div class="deck-empty-desc">凌晨四点加床接入，呼叫已发出，等待各科主任与二线就位…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 栏 2：患者战况 (Col 2: 3大宏观指标 + 折叠细况) -->
+      <div class="deck-col col-vitals active" id="colVitals">
+        <div class="deck-col-header">
+          <div class="deck-col-title">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span>患者战况 · 宏观作战面</span>
+          </div>
+          <span class="deck-col-status" id="vitalsSummaryTag">初诊评估</span>
+        </div>
+        <div class="deck-col-body" id="deckVitalsBody">
+          <div class="vitals-kpi-grid">
+            <!-- 指标 1：❤️ 病情 -->
+            <div class="vitals-kpi-card" id="kpiConditionCard">
+              <div class="kpi-top">
+                <span class="kpi-title"><span class="kpi-icon">❤️</span> 病情</span>
+                <span class="kpi-tag" id="kpiConditionTag">初诊</span>
+              </div>
+              <div class="kpi-main">
+                <span class="kpi-val" id="kpiConditionVal">80</span>
+                <span class="kpi-unit">/100</span>
+              </div>
+              <div class="kpi-bar-bg">
+                <div class="kpi-bar-fill" id="kpiConditionBar" style="width: 80%; background: var(--dawn);"></div>
+              </div>
+              <div class="kpi-sub" id="kpiConditionSub">战线：等待初查</div>
+            </div>
+
+            <!-- 指标 2：🤝 团队共识 -->
+            <div class="vitals-kpi-card" id="kpiConsensusCard">
+              <div class="kpi-top">
+                <span class="kpi-title"><span class="kpi-icon">🤝</span> 团队共识</span>
+                <span class="kpi-tag" id="kpiConsensusTag">博弈</span>
+              </div>
+              <div class="kpi-main">
+                <span class="kpi-val" id="kpiConsensusVal">50</span>
+                <span class="kpi-unit">%</span>
+              </div>
+              <div class="kpi-bar-bg">
+                <div class="kpi-bar-fill" id="kpiConsensusBar" style="width: 50%; background: var(--blue-pencil);"></div>
+              </div>
+              <div class="kpi-sub" id="kpiConsensusSub">各科依据拉锯中</div>
+            </div>
+
+            <!-- 指标 3：⏱ 决策窗口 -->
+            <div class="vitals-kpi-card" id="kpiWindowCard">
+              <div class="kpi-top">
+                <span class="kpi-title"><span class="kpi-icon">⏱</span> 决策窗口</span>
+                <span class="kpi-tag" id="kpiWindowTag">充裕</span>
+              </div>
+              <div class="kpi-main">
+                <span class="kpi-val" id="kpiWindowVal">宽裕</span>
+                <span class="kpi-unit" id="kpiWindowAct">第1幕</span>
+              </div>
+              <div class="kpi-bar-bg">
+                <div class="kpi-bar-fill" id="kpiWindowBar" style="width: 90%; background: var(--dawn);"></div>
+              </div>
+              <div class="kpi-sub" id="kpiWindowSub">随幕次与回合收窄</div>
+            </div>
+          </div>
+
+          <!-- 折叠展开 6 条战线细况 -->
+          <div class="vitals-lines-ctrl">
+            <button class="vitals-lines-btn" id="btnToggleLines" type="button">
+              <span>展开 6 条战线细况</span>
+              <svg class="svg-icon" id="linesToggleIcon" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+          <div class="vitals-lines-tray" id="vitalsLinesTray" style="display:none;">
+            <div class="battle-lines-grid" id="battleLinesGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 栏 3：待决电报 (Col 3) -->
+      <div class="deck-col col-telegraph active" id="colTelegraph">
+        <div class="deck-col-header">
+          <div class="deck-col-title">
+            <svg class="svg-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>待决电报 · 病程走样</span>
+          </div>
+          <div class="deck-col-status">
+            <span class="telegraph-pulse"></span>
+            <span id="telegraphCountTag">实时监视</span>
+          </div>
+        </div>
+        <div class="deck-col-body" id="deckTelegraphBody"></div>
+      </div>
+    </section>
 
     <!-- 幕图：作战态势图视窗与全幅画卷 -->
     <div id="actBanner">
@@ -1939,8 +2947,9 @@ header {
       </div>
     </div>
 
-    <!-- 叙事流 -->
-    <div id="messages">
+    <!-- 叙事正文（收窄至中栏宽度） -->
+    <div class="narrative-container">
+      <div id="messages">
       <div class="arc-intro-banner" id="emptyTip">
         <div class="arc-intro-title">会 诊 · 开 场</div>
         <div class="arc-intro-desc">
@@ -1960,13 +2969,37 @@ header {
       </div>
     </div>
 
-    <button id="scrollToBottom" onclick="smartScroll(true);">
-      <svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" y1="4" x2="12" y2="18"/><polyline points="18 12 12 18 6 12"/><line x1="6" y1="21" x2="18" y2="21"/></svg>
-      <span>回到最新</span>
-    </button>
+      <button id="scrollToBottom" onclick="smartScroll(true);">
+        <svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" y1="4" x2="12" y2="18"/><polyline points="18 12 12 18 6 12"/><line x1="6" y1="21" x2="18" y2="21"/></svg>
+        <span>回到最新</span>
+      </button>
+    </div>
 
-    <!-- 输入控制台 -->
+    <!-- 动作指令台与医嘱控制台 -->
     <div class="composer-wrapper">
+      <!-- 四个核心动作按钮 -->
+      <div class="core-action-bar" id="coreActionBar">
+        <button class="core-action-btn" id="btnAskExpert" type="button" title="向在场科室单独发问">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>问专家</span>
+        </button>
+        <button class="core-action-btn" id="btnConfer" type="button" title="让存在分歧的两科当面对账磋商">
+          <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+          <span>让他们商量</span>
+        </button>
+        <button class="core-action-btn" id="btnDecide" type="button" title="主管医生做出决断并拍板执行">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          <span>拍板</span>
+        </button>
+        <button class="core-action-btn" id="btnPlainTalk" type="button" title="说人话，刚才那句我没听懂">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>说人话</span>
+        </button>
+      </div>
+
+      <!-- 动态操作托盘 -->
+      <div class="action-tray" id="actionTray" style="display:none;"></div>
+
       <div class="inspiration-bar" id="quickCmd">
         <button class="inspiration-pill" data-cmd="细查床旁监护仪与化验单">
           <svg class="svg-icon" viewBox="0 0 24 24" style="color:var(--blue-pencil);"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/><circle cx="11" cy="11" r="2.5"/></svg>
@@ -2243,6 +3276,479 @@ const LEDGER_LABEL = { characters: "科室与人", items: "检查与文书", rel
 let busy = false;
 let cardEl = null;
 let streamingBubble = null;
+
+/* ════════════════════════════════════════════════════════════════
+   医院作战指挥中心 · 全局态势与动作交互控制
+   ════════════════════════════════════════════════════════════════ */
+let currentCharacters = [];
+let currentLedger = {};
+let currentMainline = {};
+let currentTurns = 0;
+let lastExtractedActions = [];
+let inDecideMode = false;
+let conferSelected = [];
+
+const BATTLE_LINE_CONFIG = [
+  { key: "sys-glucose", name: "血糖", label: "血糖战线", sub: "激素冲击代谢" },
+  { key: "sys-immune", name: "免疫", label: "免疫战线", sub: "自抗体与活动度" },
+  { key: "sys-marrow", name: "骨髓", label: "骨髓战线", sub: "造血储备储备" },
+  { key: "sys-infection", name: "感染", label: "感染战线", sub: "隐匿感染与耐药" },
+  { key: "sys-circulation", name: "循环", label: "循环战线", sub: "灌注与外周阻力" },
+  { key: "sys-oxygen", name: "氧合", label: "氧合战线", sub: "肺泡通气弥散" }
+];
+
+function renderCommandDeck(st) {
+  if (!st) return;
+  const ledger = st.ledger || {};
+  const chars = ledger.characters || [];
+  const notes = ledger.notes || [];
+  const mainline = st.mainline || {};
+  const turns = st.totalTurns || 0;
+
+  currentCharacters = chars;
+  currentLedger = ledger;
+  currentMainline = mainline;
+  currentTurns = turns;
+
+  // 1. Header Case Badge
+  const caseBadge = $("caseBadge");
+  if (caseBadge) {
+    const actNum = mainline.act || 1;
+    const title = mainline.title ? mainline.title.replace(/^第[一二三四五六七\d]+幕[\s·]*/, "") : "凌晨初诊";
+    caseBadge.textContent = "CASE 0" + actNum + " · " + title;
+  }
+
+  // 2. Col 1: 活跃科室
+  renderDeckRoster(chars);
+
+  // 3. Col 2: 患者战况
+  renderDeckVitals(notes, mainline, turns);
+
+  // 4. Col 3: 待决电报
+  renderDeckTelegraphs(notes, ledger);
+}
+
+function renderDeckRoster(chars) {
+  const body = $("deckRosterBody");
+  const countTag = $("rosterCountTag");
+  const tabBadge = $("rosterTabBadge");
+  if (!body) return;
+
+  const count = chars ? chars.length : 0;
+  if (countTag) countTag.textContent = "已到场 " + count + " 科";
+  if (tabBadge) tabBadge.textContent = String(count);
+
+  if (!chars || !chars.length) {
+    body.innerHTML = '<div class="deck-empty-state"><div class="deck-empty-icon">' + ICONS.roster + '</div><div class="deck-empty-title">各科室正携带部署预案赶赴会诊室</div><div class="deck-empty-desc">凌晨四点加床接入，呼叫已发出，等待各科主任与二线就位…</div></div>';
+    return;
+  }
+
+  let html = "";
+  for (const c of chars) {
+    const name = c.name || c.key || "未知科室";
+    const key = c.key || name;
+    const stance = c.stance || c.note || "（暂无公开主张）";
+    const conf = typeof c.confidence === "number" ? c.confidence : 55;
+    const limit = c.limitation || "暂未暴露明显盲区";
+
+    html += '<div class="deck-roster-card" data-dept="' + esc(key) + '">';
+    html += '  <div class="deck-roster-top">';
+    html += '    <div class="deck-roster-name-wrap">';
+    html += '      <span class="dept-dot"></span>';
+    html += '      <span class="deck-roster-name">' + esc(name) + '</span>';
+    if (key !== name) html += '<span class="deck-roster-key">' + esc(key) + '</span>';
+    html += '    </div>';
+    html += '    <button class="deck-roster-ask-btn" onclick="askSpecificDept(\'' + esc(key) + '\');" title="单独向' + esc(key) + '发问"><span>问此科</span></button>';
+    html += '  </div>';
+    html += '  <div class="deck-roster-stance"><span class="stance-label">主张：</span><span class="stance-text">' + esc(stance) + '</span></div>';
+    html += '  <div class="deck-roster-conf">';
+    html += '    <div class="conf-info"><span>信心刻度</span><span class="conf-num">' + conf + '%</span></div>';
+    html += '    <div class="conf-track"><div class="conf-fill" style="width:' + conf + '%;"></div></div>';
+    html += '  </div>';
+    html += '  <div class="deck-roster-limit" title="科室防区盲区"><span class="limit-tag">⚠ 盲区</span><span class="limit-text">' + esc(limit) + '</span></div>';
+    html += '</div>';
+  }
+  body.innerHTML = html;
+}
+
+function askSpecificDept(dept) {
+  submitCommand("【问专家】" + dept + "，你怎么看？");
+}
+
+function renderDeckVitals(notes, mainline, turns) {
+  let minVal = 100;
+  let minLine = null;
+  let foundLines = 0;
+
+  const lineResults = BATTLE_LINE_CONFIG.map(cfg => {
+    const note = (notes || []).find(n => n.key === cfg.key);
+    let val = null;
+    if (note) {
+      if (typeof note.value === "number") val = note.value;
+      else if (note.value !== undefined && note.value !== null) {
+        const p = parseFloat(note.value);
+        if (!isNaN(p)) val = p;
+      } else if (typeof note.val === "number") {
+        val = note.val;
+      }
+    }
+    if (val !== null) {
+      foundLines++;
+      if (val < minVal) {
+        minVal = val;
+        minLine = { ...cfg, val };
+      }
+    }
+    return { ...cfg, val: val !== null ? val : 80, recorded: val !== null };
+  });
+
+  const conditionScore = foundLines > 0 ? minVal : 80;
+  let conditionStatus = "初诊评估";
+  let conditionColor = "var(--dawn)";
+  if (conditionScore <= 35) {
+    conditionStatus = "极危重 · 濒临失代偿";
+    conditionColor = "var(--red-pencil)";
+  } else if (conditionScore <= 60) {
+    conditionStatus = "波动预警 · 防区受压";
+    conditionColor = "var(--lamp-warm)";
+  } else {
+    conditionStatus = "代偿平稳 · 暂时可控";
+    conditionColor = "var(--dawn)";
+  }
+
+  const cValEl = $("kpiConditionVal");
+  const cBarEl = $("kpiConditionBar");
+  const cTagEl = $("kpiConditionTag");
+  const cSubEl = $("kpiConditionSub");
+  if (cValEl) cValEl.textContent = conditionScore;
+  if (cBarEl) {
+    cBarEl.style.width = conditionScore + "%";
+    cBarEl.style.background = conditionColor;
+  }
+  if (cTagEl) {
+    cTagEl.textContent = conditionStatus.split(" · ")[0];
+    cTagEl.style.borderColor = conditionColor;
+  }
+  if (cSubEl) {
+    cSubEl.textContent = minLine ? ("最弱：" + minLine.name + " (" + minLine.val + "分)") : "六线战线防区已建立";
+  }
+
+  // 2. Team Consensus: sys-factions note
+  const factionsNote = (notes || []).find(n => n.key === "sys-factions");
+  let consensusScore = 50;
+  if (factionsNote) {
+    if (typeof factionsNote.value === "number") consensusScore = factionsNote.value;
+    else if (factionsNote.value !== undefined && factionsNote.value !== null) {
+      const p = parseFloat(factionsNote.value);
+      if (!isNaN(p)) consensusScore = p;
+    }
+  }
+  let consensusStatus = "磋商中";
+  let consensusColor = "var(--blue-pencil)";
+  if (consensusScore >= 75) {
+    consensusStatus = "高度共识";
+    consensusColor = "var(--dawn)";
+  } else if (consensusScore >= 45) {
+    consensusStatus = "拉锯博弈";
+    consensusColor = "var(--lamp-warm)";
+  } else {
+    consensusStatus = "撕裂对立";
+    consensusColor = "var(--red-pencil)";
+  }
+
+  const csValEl = $("kpiConsensusVal");
+  const csBarEl = $("kpiConsensusBar");
+  const csTagEl = $("kpiConsensusTag");
+  const csSubEl = $("kpiConsensusSub");
+  if (csValEl) csValEl.textContent = consensusScore;
+  if (csBarEl) {
+    csBarEl.style.width = consensusScore + "%";
+    csBarEl.style.background = consensusColor;
+  }
+  if (csTagEl) {
+    csTagEl.textContent = consensusStatus;
+    csTagEl.style.borderColor = consensusColor;
+  }
+  if (csSubEl) {
+    csSubEl.textContent = consensusScore < 45 ? "各科互不相让，急需主管医生权衡" : "各科依据已摆上台面";
+  }
+
+  // 3. Decision Window: act + turns
+  let actNum = 1;
+  if (mainline && mainline.act) actNum = mainline.act;
+  else if (mainline && mainline.phaseId) {
+    const m = String(mainline.phaseId).match(/\d+/);
+    if (m) actNum = parseInt(m[0], 10);
+  }
+  const windowPct = Math.max(12, Math.min(100, Math.round(100 - (actNum - 1) * 16 - (turns || 0) * 2.5)));
+  let windowStatus = "宽裕";
+  let windowColor = "var(--dawn)";
+  if (windowPct <= 30) {
+    windowStatus = "紧迫";
+    windowColor = "var(--red-pencil)";
+  } else if (windowPct <= 60) {
+    windowStatus = "收窄";
+    windowColor = "var(--lamp-warm)";
+  }
+
+  const wValEl = $("kpiWindowVal");
+  const wBarEl = $("kpiWindowBar");
+  const wTagEl = $("kpiWindowTag");
+  const wSubEl = $("kpiWindowSub");
+  const wActEl = $("kpiWindowAct");
+  if (wValEl) wValEl.textContent = windowStatus;
+  if (wActEl) wActEl.textContent = "第" + actNum + "幕";
+  if (wBarEl) {
+    wBarEl.style.width = windowPct + "%";
+    wBarEl.style.background = windowColor;
+  }
+  if (wTagEl) {
+    wTagEl.textContent = "余地 " + windowPct + "%";
+    wTagEl.style.borderColor = windowColor;
+  }
+  if (wSubEl) {
+    wSubEl.textContent = "时机流逝，发问消耗窗口";
+  }
+
+  const vitalsTag = $("vitalsSummaryTag");
+  const vitalsTabBadge = $("vitalsTabBadge");
+  if (vitalsTag) {
+    vitalsTag.textContent = conditionStatus.split(" · ")[0];
+    vitalsTag.style.color = conditionColor;
+  }
+  if (vitalsTabBadge) {
+    vitalsTabBadge.textContent = conditionScore + "分";
+  }
+
+  const grid = $("battleLinesGrid");
+  if (grid) {
+    grid.innerHTML = lineResults.map(l => {
+      let bColor = l.val <= 35 ? "var(--red-pencil)" : (l.val <= 60 ? "var(--lamp-warm)" : "var(--dawn)");
+      return '<div class="battle-line-card">' +
+        '<div class="line-head"><span class="line-name">' + esc(l.name) + '</span><span class="line-num" style="color:' + bColor + '">' + l.val + '</span></div>' +
+        '<div class="line-track"><div class="line-fill" style="width:' + l.val + '%;background:' + bColor + '"></div></div>' +
+        '<div class="line-sub">' + esc(l.sub) + '</div></div>';
+    }).join("");
+  }
+}
+
+function renderDeckTelegraphs(notes, ledger) {
+  const body = $("deckTelegraphBody");
+  const countTag = $("telegraphCountTag");
+  const tabBadge = $("telegraphTabBadge");
+  if (!body) return;
+
+  const records = (notes || []).filter(n => n.key && n.key.startsWith("record-"));
+  if (countTag) countTag.textContent = "记录 " + records.length + " 条";
+  if (tabBadge) tabBadge.textContent = records.length + "电";
+
+  let itemsHtml = "";
+  if (records.length > 0) {
+    const rev = [...records].reverse();
+    for (const r of rev) {
+      const fact = r.as || r["实际"] || r.fact || "";
+      const rec = r.recorded || r["记录"] || r.text || r.content || "";
+      const drift = r.drift || r["偏差"] || "";
+      const key = r.key.replace("record-", "RECORD #");
+
+      itemsHtml += '<div class="deck-tg-item">';
+      itemsHtml += '  <div class="tg-item-header">';
+      itemsHtml += '    <span class="tg-item-code">' + esc(key) + '</span>';
+      if (drift) itemsHtml += '    <span class="tg-drift-badge" title="病历与实情走样偏差">走样：' + esc(drift) + '</span>';
+      else itemsHtml += '    <span class="tg-status-tag">已归档</span>';
+      itemsHtml += '  </div>';
+      if (fact) itemsHtml += '  <div class="tg-fact"><span class="tg-label">【实情】</span><span class="tg-text">' + esc(fact) + '</span></div>';
+      if (rec) itemsHtml += '  <div class="tg-rec"><span class="tg-label">【病历】</span><span class="tg-text">' + esc(rec) + '</span></div>';
+      itemsHtml += '</div>';
+    }
+  }
+
+  if (records.length < 3) {
+    const defaults = [
+      { code: "DISPATCH #01", tag: "战线布设", title: "04:20 留观区加床接入", desc: "主诉含糊，六大生理战线（糖/免/髓/感/循/氧）已全面设防。" },
+      { code: "DISPATCH #02", tag: "科室就位", title: "会诊召集指令发出", desc: "各科值班二线正携带科室专属部署方案赶赴会诊室。" },
+      { code: "DISPATCH #03", tag: "主管指令", title: "主管医生准备拍板", desc: "病历即经文：床上的病人与纸上的记录存在第一道偏差。" }
+    ];
+    for (let i = records.length; i < 3; i++) {
+      const d = defaults[i];
+      itemsHtml += '<div class="deck-tg-item baseline">';
+      itemsHtml += '  <div class="tg-item-header"><span class="tg-item-code">' + d.code + '</span><span class="tg-baseline-badge">' + d.tag + '</span></div>';
+      itemsHtml += '  <div class="tg-title">' + d.title + '</div>';
+      itemsHtml += '  <div class="tg-desc">' + d.desc + '</div>';
+      itemsHtml += '</div>';
+    }
+  }
+  body.innerHTML = itemsHtml;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   四个核心动作按钮交互与发送封装
+   ════════════════════════════════════════════════════════════════ */
+function submitCommand(text) {
+  if (busy) return;
+  if (!text) return;
+  els.input.value = text;
+  sendChat();
+}
+
+function onAskExpertClick() {
+  const tray = $("actionTray");
+  if (!tray) return;
+  if (tray.style.display !== "none" && tray.dataset.mode === "ask") {
+    tray.style.display = "none";
+    return;
+  }
+  tray.dataset.mode = "ask";
+  tray.style.display = "block";
+
+  const chars = currentCharacters || [];
+  if (!chars.length) {
+    tray.innerHTML = '<div class="tray-inner">' +
+      '<div class="tray-header"><span class="tray-title"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 问专家 · 待命科室</span>' +
+      '<button class="tray-close" onclick="$(\'actionTray\').style.display=\'none\';">&times;</button></div>' +
+      '<div class="tray-empty">暂无科室到场，请先在下方自由输入医嘱推进会诊。</div></div>';
+    return;
+  }
+
+  let chipsHtml = chars.map(c => {
+    const name = c.name || c.key || "未知科室";
+    const key = c.key || name;
+    return '<button class="tray-chip-btn" data-dept="' + esc(key) + '" title="' + esc(c.stance || '') + '">' +
+      '<span class="dept-dot"></span><span>' + esc(key) + '</span>' +
+      (c.confidence ? ('<span class="dept-conf-tag">' + c.confidence + '%</span>') : '') +
+      '</button>';
+  }).join("");
+
+  tray.innerHTML = '<div class="tray-inner">' +
+    '<div class="tray-header"><span class="tray-title"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 问专家：请选择要咨询的科室</span>' +
+    '<button class="tray-close" onclick="$(\'actionTray\').style.display=\'none\';">&times;</button></div>' +
+    '<div class="tray-chips">' + chipsHtml + '</div></div>';
+
+  tray.querySelectorAll(".tray-chip-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const dept = btn.dataset.dept;
+      tray.style.display = "none";
+      submitCommand("【问专家】" + dept + "，你怎么看？");
+    });
+  });
+}
+
+function onConferClick() {
+  const tray = $("actionTray");
+  if (!tray) return;
+  if (tray.style.display !== "none" && tray.dataset.mode === "confer") {
+    tray.style.display = "none";
+    conferSelected = [];
+    return;
+  }
+  tray.dataset.mode = "confer";
+  tray.style.display = "block";
+  conferSelected = [];
+
+  const chars = currentCharacters || [];
+  if (chars.length < 2) {
+    tray.innerHTML = '<div class="tray-inner">' +
+      '<div class="tray-header"><span class="tray-title"><svg class="svg-icon" viewBox="0 0 24 24"><circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/><line x1="10" y1="12" x2="14" y2="12"/></svg> 让他们商量 · 对账磋商</span>' +
+      '<button class="tray-close" onclick="$(\'actionTray\').style.display=\'none\';">&times;</button></div>' +
+      '<div class="tray-empty">当前到场科室不足 2 个（目前 ' + chars.length + ' 个），尚无法组织两相磋商。</div></div>';
+    return;
+  }
+  renderConferTray();
+}
+
+function renderConferTray() {
+  const tray = $("actionTray");
+  const chars = currentCharacters || [];
+  let chipsHtml = chars.map(c => {
+    const name = c.key || c.name || "未知科室";
+    const isSelected = conferSelected.includes(name);
+    return '<button class="tray-chip-btn ' + (isSelected ? 'selected' : '') + '" data-dept="' + esc(name) + '">' +
+      '<span class="check-box">' + (isSelected ? '✓' : '') + '</span><span>' + esc(name) + '</span></button>';
+  }).join("");
+
+  const canSubmit = conferSelected.length === 2;
+  tray.innerHTML = '<div class="tray-inner">' +
+    '<div class="tray-header"><span class="tray-title"><svg class="svg-icon" viewBox="0 0 24 24"><circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/><line x1="10" y1="12" x2="14" y2="12"/></svg> 让他们商量：请勾选两个科室（已选 ' + conferSelected.length + '/2）</span>' +
+    '<button class="tray-close" onclick="$(\'actionTray\').style.display=\'none\';">&times;</button></div>' +
+    '<div class="tray-chips">' + chipsHtml + '</div>' +
+    (canSubmit ? ('<div class="tray-action-row"><button class="tray-submit-btn" id="btnConfirmConfer">确认发起对账：【让他们商量】' + conferSelected[0] + ' × ' + conferSelected[1] + '，把各自的依据摆一摆。</button></div>') : '') +
+    '</div>';
+
+  tray.querySelectorAll(".tray-chip-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const dept = btn.dataset.dept;
+      const idx = conferSelected.indexOf(dept);
+      if (idx >= 0) {
+        conferSelected.splice(idx, 1);
+      } else {
+        if (conferSelected.length < 2) conferSelected.push(dept);
+        else conferSelected[1] = dept;
+      }
+      renderConferTray();
+    });
+  });
+
+  $("btnConfirmConfer")?.addEventListener("click", () => {
+    if (conferSelected.length === 2) {
+      const [a, b] = conferSelected;
+      tray.style.display = "none";
+      conferSelected = [];
+      submitCommand("【让他们商量】" + a + " × " + b + "，把各自的依据摆一摆。");
+    }
+  });
+}
+
+function onDecideClick() {
+  const tray = $("actionTray");
+  if (!tray) return;
+
+  inDecideMode = true;
+  const container = document.querySelector(".input-box-container");
+  if (container) container.classList.add("decide-mode");
+
+  els.input.placeholder = "【拍板】写下你的主管决断（或直接点击下方候选快捷执行）…";
+  els.input.focus();
+
+  tray.dataset.mode = "decide";
+  tray.style.display = "block";
+
+  const cands = (lastExtractedActions && lastExtractedActions.length) ? lastExtractedActions : [];
+  let candsHtml = "";
+  if (cands.length) {
+    candsHtml = cands.map(c => {
+      return '<button class="tray-cand-btn" data-cand="' + esc(c) + '">' +
+        '<span class="gavel-tag">拍板</span><span class="cand-text">' + esc(c) + '</span></button>';
+    }).join("");
+  }
+
+  tray.innerHTML = '<div class="tray-inner">' +
+    '<div class="tray-header"><span class="tray-title"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg> 拍板模式：点击快捷选项直接定夺，或在输入框自由书写</span>' +
+    '<button class="tray-close" onclick="exitDecideMode();">&times;</button></div>' +
+    (cands.length ? ('<div class="tray-cands">' + candsHtml + '</div>') : '<div class="tray-empty">正文暂未检出【你可以…】快捷候选，请直接在输入框写下你的决断并回车发送。</div>') +
+    '</div>';
+
+  tray.querySelectorAll(".tray-cand-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const cand = btn.dataset.cand;
+      exitDecideMode();
+      submitCommand("【拍板】" + cand);
+    });
+  });
+}
+
+function exitDecideMode() {
+  inDecideMode = false;
+  const tray = $("actionTray");
+  if (tray && tray.dataset.mode === "decide") tray.style.display = "none";
+  const container = document.querySelector(".input-box-container");
+  if (container) container.classList.remove("decide-mode");
+  els.input.placeholder = "写下医嘱、处置决断，或要求某科室当面对账…（Enter 发送）";
+}
+
+function onPlainTalkClick() {
+  submitCommand("说人话，刚才那句我没听懂。");
+}
+
 
 function clearTyping() {
   const t = document.querySelector(".msg.typing");
@@ -2574,6 +4080,7 @@ function renderState(st) {
   renderMainline(st.mainline);
   renderRoster(st.ledger?.characters || []);
   renderLedger(st.ledger || {});
+  renderCommandDeck(st);
 }
 
 function renderMainline(m) {
@@ -2827,6 +4334,7 @@ function extractRecommendedActions(text) {
 }
 
 function updateInspirationPills(actions) {
+  lastExtractedActions = actions || [];
   const bar = $("quickCmd");
   if (!bar) return;
   
@@ -2998,8 +4506,15 @@ async function sendChat() {
     return;
   }
   
-  const text = els.input.value.trim();
+  let text = els.input.value.trim();
   if (!text) return;
+
+  if (inDecideMode) {
+    if (!text.startsWith("【拍板】")) {
+      text = "【拍板】" + text;
+    }
+    exitDecideMode();
+  }
   
   if (cardEl) {
     wsSend({ type: "choice", text });
@@ -3433,6 +4948,39 @@ window.addEventListener("keydown", (e) => {
     else if (e.key === "ArrowLeft") theaterNavigate(-1);
     else if (e.key === "ArrowRight") theaterNavigate(1);
   }
+});
+
+
+// 初始化 4 个核心动作按钮
+$("btnAskExpert")?.addEventListener("click", onAskExpertClick);
+$("btnConfer")?.addEventListener("click", onConferClick);
+$("btnDecide")?.addEventListener("click", onDecideClick);
+$("btnPlainTalk")?.addEventListener("click", onPlainTalkClick);
+
+// 折叠展开 6 条战线细况
+$("btnToggleLines")?.addEventListener("click", () => {
+  const tray = $("vitalsLinesTray");
+  const icon = $("linesToggleIcon");
+  const btnText = $("btnToggleLines")?.querySelector("span");
+  if (!tray) return;
+  const isShown = tray.style.display !== "none";
+  tray.style.display = isShown ? "none" : "block";
+  if (btnText) btnText.textContent = isShown ? "展开 6 条战线细况" : "收起 6 条战线细况";
+  if (icon) icon.style.transform = isShown ? "rotate(0deg)" : "rotate(180deg)";
+});
+
+// 窄屏分段选项卡切换
+const deckTabs = document.querySelectorAll(".deck-tab-btn");
+const deckCols = document.querySelectorAll(".deck-col");
+deckTabs.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const targetId = btn.dataset.col;
+    deckTabs.forEach(b => b.classList.remove("active"));
+    deckCols.forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    const targetCol = $(targetId);
+    if (targetCol) targetCol.classList.add("active");
+  });
 });
 
 connect();
