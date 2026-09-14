@@ -1207,9 +1207,8 @@ function checkTokenBudget(st: SessionState): void {
 	}
 }
 
-async function chatOnce(st: SessionState, text: string): Promise<string> {
-	if (!st.card) throw new Error("请先导入角色卡");
-	checkTokenBudget(st);
+/** 跑一轮（由 chatOnce 调用；空正文时会被重试一次） */
+async function runTurnOnce(st: SessionState, text: string): Promise<string> {
 	st.lastContext = text;
 	logger.info("turn_start", {
 		sid: st.sid,
@@ -1231,7 +1230,7 @@ async function chatOnce(st: SessionState, text: string): Promise<string> {
 	});
 	if (prune.pending) void st.ctx.drainCompression(system).catch(() => {});
 	await st.ledger.updateAfterTurn({
-		characterName: st.card.name,
+		characterName: st.card?.name ?? "",
 		userInput: text,
 		narrative: result.content,
 		turns: st.ctx.totalTurns,
@@ -1242,7 +1241,26 @@ async function chatOnce(st: SessionState, text: string): Promise<string> {
 		`${st.lastContext}\n${snapshotText(st.ledger.load())}`,
 		st.ctx.totalTurns,
 	);
-	return result.content || "（本轮无正文，换个说法试试）";
+	return result.content;
+}
+
+/**
+ * HTTP 通道的一回合（WebSocket 通道是 handleChat，两者共用 runTurnOnce 的内核）。
+ * 这里**空正文会重试一次**：主模型（gemini-3.8-flash）的思考链偶发吃光输出预算、
+ * 返回空正文——线上实测撞到过一次，玩家会随机看到「本轮无正文」。重试挡这种抖动。
+ */
+async function chatOnce(st: SessionState, text: string): Promise<string> {
+	if (!st.card) throw new Error("请先导入角色卡");
+	checkTokenBudget(st);
+	let out = await runTurnOnce(st, text);
+	if (!out.trim()) {
+		logger.warn("empty_content_retry", {
+			sid: st.sid,
+			turns: st.ctx.totalTurns,
+		});
+		out = await runTurnOnce(st, text);
+	}
+	return out || "（本轮无正文，换个说法试试）";
 }
 
 async function handleChat(

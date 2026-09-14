@@ -115,7 +115,9 @@ export class Harness {
       const result = await this.client.stream(messages, {
         tools: toolDefs,
         temperature,
-        maxTokens: 4096,
+        // 8192：思考型模型（如 gemini-3.8-flash）会把推理也算进输出预算，
+        // 4096 时偶发被思考链吃光、正文为空。抬高预算给正文留出余量。
+        maxTokens: 8192,
         onDelta: (d) => callBuffer.push(d),
       });
       reasoning += result.reasoning;
