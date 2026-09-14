@@ -2722,9 +2722,32 @@ header {
   .deck-mini .mk b { font-size: 15px; }
   .deck-mini .mk-hint { display: none; }
 }
+
+/* ═══ 幕图虚化背景 ═══
+   把当前幕的配图挪到叙事区背后做一层极淡的底纹，
+   顶部那条实体横幅因此默认收起（想细看再展开，或点开全幅画卷）。 */
+.act-backdrop {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-position: center; background-size: cover; background-repeat: no-repeat;
+  filter: blur(30px) saturate(0.85) brightness(0.92);
+  transform: scale(1.12);            /* 放大一点，避免模糊后四边露白 */
+  opacity: 0.20;
+  transition: opacity .7s ease;
+}
+.act-backdrop::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(135% 105% at 50% 38%, rgba(7,11,16,.30) 28%, rgba(7,11,16,.88) 100%);
+}
+@media (max-width: 900px) {
+  .act-backdrop { filter: blur(22px) brightness(.92); opacity: 0.16; }
+}
+@media (prefers-reduced-motion: reduce) { .act-backdrop { transition: none; } }
 </style>
 </head>
 <body>
+
+<!-- 幕图虚化背景：随主线切幕，图源由脚本同步（见文件末尾） -->
+<div class="act-backdrop" id="actBackdrop" aria-hidden="true"></div>
 
 <div class="vignette"></div>
 
@@ -3585,9 +3608,12 @@ function renderDeckTelegraphs(notes, ledger) {
   if (records.length > 0) {
     const rev = [...records].reverse();
     for (const r of rev) {
-      const fact = r.as || r["实际"] || r.fact || "";
-      const rec = r.recorded || r["记录"] || r.text || r.content || "";
-      const drift = r.drift || r["偏差"] || "";
+      // 记账员有两种写法：平铺的 as/recorded/drift，或嵌在 content 里。
+      // 只读顶层会把 【病历】 渲染成 "[object Object]"，两种都要认。
+      const rc = (r.content && typeof r.content === "object") ? r.content : r;
+      const fact = rc.as || r.as || rc["实际"] || r.fact || "";
+      const rec = rc.recorded || r.recorded || rc["记录"] || r.text || "";
+      const drift = rc.drift || r.drift || rc["偏差"] || "";
       const key = r.key.replace("record-", "RECORD #");
 
       itemsHtml += '<div class="deck-tg-item">';
@@ -4199,9 +4225,10 @@ function renderLedger(ledger) {
       li.className = "ledger-item";
       const { key, ...rest } = it;
       if (key && key.startsWith("record-")) {
-        const asText = rest.as || rest["实际"] || "";
-        const recText = rest.recorded || rest["记录"] || "";
-        const driftText = rest.drift || rest["偏差"] || "";
+        const rc = (rest.content && typeof rest.content === "object") ? rest.content : rest;
+        const asText = rc.as || rest.as || rc["实际"] || "";
+        const recText = rc.recorded || rest.recorded || rc["记录"] || "";
+        const driftText = rc.drift || rest.drift || rc["偏差"] || "";
         li.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
             <span class="ledger-key" style="color:var(--red-pencil);font-weight:600;">${esc(key)}</span>
@@ -4211,7 +4238,8 @@ function renderLedger(ledger) {
           ${recText ? `<div style="font-size:11.5px;color:var(--text-main);border-left:2px solid var(--blue-pencil);padding-left:6px;margin-top:3px;"><span style="color:var(--blue-pencil);">【病历】</span>${esc(recText)}</div>` : ""}
         `;
       } else if (key && key.startsWith("sys-")) {
-        const val = rest.val !== undefined ? rest.val : (rest.value !== undefined ? rest.value : rest.desc || "");
+        const raw = rest.val !== undefined ? rest.val : (rest.value !== undefined ? rest.value : (rest.content !== undefined ? rest.content : rest.desc || ""));
+        const val = (raw && typeof raw === "object") ? JSON.stringify(raw) : raw;
         li.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <span class="ledger-key" style="color:var(--dawn);font-weight:600;">${esc(key)}</span>
@@ -5062,13 +5090,36 @@ void httpPollState();
   } catch (e) {}
 })();
 
+/* ── 幕图虚化背景：跟随当前幕的图源 ── */
+(function () {
+  var el = document.getElementById("actBackdrop");
+  if (!el || typeof updateActBanner !== "function") return;
+  function sync() {
+    var img = document.getElementById("actImg");
+    var src = img && img.getAttribute("src");
+    if (!src || el.dataset.src === src) return;
+    el.dataset.src = src;
+    el.style.backgroundImage = 'url("' + src + '")';
+  }
+  var orig = updateActBanner;
+  window.updateActBanner = function () {
+    var r = orig.apply(this, arguments);
+    try { sync(); } catch (e) {}
+    return r;
+  };
+  sync();
+})();
+
 /* ── 幕图横幅的收起状态也记住（原来一次刷新就丢，收一次下次又展开） ── */
 (function () {
   var b = document.getElementById("actBanner");
   var t = document.getElementById("actToggle");
   if (!b || !t) return;
   var K = "yz.banner.collapsed";
-  try { if (localStorage.getItem(K) === "1") b.classList.add("collapsed"); } catch (e) {}
+  var savedB = null;
+  try { savedB = localStorage.getItem(K); } catch (e) {}
+  // 图已作为背景常驻，首次访问默认收起横幅；之后尊重用户的选择
+  if (savedB === null || savedB === "1") b.classList.add("collapsed");
   t.addEventListener("click", function () {
     try { localStorage.setItem(K, b.classList.contains("collapsed") ? "1" : "0"); } catch (e) {}
   });
