@@ -1,0 +1,31 @@
+# 密钥与本地配置——绝不提交
+.env
+*.local.json
+
+# 运行时数据
+state/
+node_modules/
+logs/
+*.log
+
+# 系统
+.DS_Store
+Thumbs.db
+server.log
+server.pid
+*.png
+
+# 手工备份
+state.backup-*/
+server.err.log
+.vercel
+.env*
+
+# 例外：环境变量模板要提交（README 让人 cp 它），上面 .env* 会误伤
+!.env.example
+
+# 例外：配图 PNG 是交付物（README 与网页都在用），上面 *.png 会误伤
+!assets/campaigns/neike/art/png/*.png
+
+state_backup*
+server.out.log
